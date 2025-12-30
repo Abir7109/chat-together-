@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ct-bg-primary: #F5F5F0;
+  --ct-bg-secondary: #E6D8C3;
+  --ct-bg-tertiary: #C2A68C;
+  --ct-sage: #5D866C;
+  --ct-sage-light: #7A9D86;
+  --ct-sage-dark: #4A6B56;
+  --ct-text: #2C2C2C;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-primary text-text antialiased;
+  }
+}
+
+@layer components {
+  .bg-app {
+    background: var(--ct-bg-primary);
+  }
+
+  .panel {
+    background: rgba(230, 216, 195, 0.6);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .btn-primary {
+    @apply bg-sage text-white px-4 py-2 rounded-lg font-medium transition-colors;
+  }
+
+  .btn-primary:hover {
+    background: var(--ct-sage-dark);
+  }
+
+  .btn-secondary {
+    @apply bg-beige text-text px-4 py-2 rounded-lg font-medium transition-colors hover:bg-tan;
+  }
+
+  .focus-ring {
+    box-shadow: 0 0 0 3px rgba(93, 134, 108, 0.35);
+  }
+
+  .input-base {
+    @apply bg-white/60 border border-tan/30 rounded-lg px-3 py-2 focus:outline-none focus:border-sage focus:ring-2 focus:ring-sage/20 transition-all;
+  }
+
+  .message-bubble {
+    @apply rounded-2xl px-4 py-2 max-w-lg break-words;
+  }
+
+  .message-bubble-own {
+    @apply bg-sage text-white ml-auto;
+  }
+
+  .message-bubble-other {
+    @apply bg-white/80 text-text;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(93, 134, 108, 0.3) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(93, 134, 108, 0.3);
+    border-radius: 3px;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
