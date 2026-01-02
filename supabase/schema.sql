@@ -123,6 +123,10 @@ create policy "Users can insert messages in chats they belong to."
       and user_id = auth.uid()
     )
   );
+  
+create policy "Users can update their own messages."
+  on messages for update
+  using ( auth.uid() = author_id );
 
 -- Function to handle new user signup
 create or replace function public.handle_new_user() 
@@ -144,3 +148,23 @@ create trigger on_auth_user_created
 alter publication supabase_realtime add table messages;
 alter publication supabase_realtime add table chats;
 alter publication supabase_realtime add table chat_members;
+
+-- Storage Setup
+-- Note: You must enable Storage in your Supabase dashboard first.
+-- These SQL commands assume the 'storage' extension is available (it is by default).
+
+insert into storage.buckets (id, name, public)
+values ('chat-media', 'chat-media', true)
+on conflict (id) do nothing;
+
+-- Storage Policies
+create policy "Media Public Access"
+  on storage.objects for select
+  using ( bucket_id = 'chat-media' );
+
+create policy "Media Authenticated Upload"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'chat-media'
+    and auth.role() = 'authenticated'
+  );

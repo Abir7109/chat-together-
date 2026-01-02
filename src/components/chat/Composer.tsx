@@ -4,6 +4,7 @@ import { useState, useRef, KeyboardEvent, useEffect } from "react";
 import { Send, Paperclip, Smile, Image as ImageIcon, X } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
 import { chatService } from "@/services/chatService";
+import { useUserStore } from "@/store/userStore";
 import { useToastStore } from "@/components/ui/Toast";
 import EmojiPicker from "emoji-picker-react";
 import type { Message } from "@/types";
@@ -94,6 +95,26 @@ export function Composer({ chatId }: { chatId: string }) {
   return (
     <div className="panel border-t border-tan/20 p-4 relative">
       <div className="max-w-4xl mx-auto">
+        {/* Reply Preview */}
+        {replyingTo && (
+          <div className="mb-3 flex items-center justify-between bg-tan/20 rounded-lg p-2 border-l-4 border-sage">
+            <div className="flex flex-col text-sm overflow-hidden">
+              <span className="font-semibold text-sage-dark">
+                Replying to {getUser(replyingTo.authorId)?.displayName || 'Unknown'}
+              </span>
+              <span className="truncate text-text/60">
+                {replyingTo.content || (replyingTo.media?.length ? 'Attachment' : '')}
+              </span>
+            </div>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="p-1 hover:bg-tan/30 rounded"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+
         {/* File Previews */}
         {selectedFiles.length > 0 && (
           <div className="mb-3 flex gap-2 flex-wrap">

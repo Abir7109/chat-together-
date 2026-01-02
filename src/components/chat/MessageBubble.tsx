@@ -115,6 +115,20 @@ export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps
               isOwn ? "message-bubble-own" : "message-bubble-other"
             }`}
           >
+            {/* Replied Message Context */}
+            {repliedMessage && (
+              <div className={`mb-2 rounded px-2 py-1 text-sm border-l-2 ${
+                isOwn ? "bg-black/5 border-black/20" : "bg-white/40 border-sage-dark/50"
+              }`}>
+                <p className="font-semibold text-xs opacity-70">
+                  {repliedAuthor?.displayName || 'Unknown'}
+                </p>
+                <p className="truncate opacity-60">
+                  {repliedMessage.content || (repliedMessage.media?.length ? 'Attachment' : '')}
+                </p>
+              </div>
+            )}
+
             {/* Media Attachments */}
             {message.media && message.media.length > 0 && (
               <div className="mb-2 space-y-2">

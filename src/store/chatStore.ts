@@ -55,11 +55,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
   },
 
+  setReplyingTo: (message) => set({ replyingTo: message }),
+
   sendNewMessage: async (chatId, content, replyToId, media) => {
     const message = await chatService.sendMessage(chatId, content, replyToId, media);
     // Optimistic update or wait for real-time? 
     // For now, let's add it directly. Real-time subscription should handle deduplication if needed.
     get().addMessage(message);
+    set({ replyingTo: null });
   },
 
   addReaction: async (chatId, messageId, emoji) => {
