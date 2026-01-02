@@ -30,9 +30,15 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      await authService.signUp(email, password, username, displayName);
-      addToast("Registration successful! Please check your email to verify.", "success");
-      router.push("/auth/login");
+      const { session } = await authService.signUp(email, password, username, displayName);
+      
+      if (session) {
+        addToast("Registration successful!", "success");
+        router.push("/chat");
+      } else {
+        addToast("Registration successful! Please check your email to verify.", "success");
+        router.push("/auth/login");
+      }
     } catch (error: any) {
       addToast(error.message || "Failed to register", "error");
     } finally {

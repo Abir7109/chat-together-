@@ -24,7 +24,16 @@ The `supabase/schema.sql` file now includes commands to automatically enable Rea
 
 Simply running the SQL query in Step 1.2 is enough.
 
-### Step 1.4: Get API Credentials
+### Step 1.4: Authentication Settings (Important!)
+By default, Supabase requires users to verify their email address before logging in. For a smoother experience (and to fix "Invalid login credentials" errors immediately after signup):
+
+1. Go to **Authentication** -> **Providers** -> **Email**.
+2. **Disable** "Confirm email".
+3. Click "Save".
+
+This allows users to log in immediately after signing up without waiting for an email.
+
+### Step 1.5: Get API Credentials
 1. Go to **Project Settings** (cog icon) -> **API**.
 2. Copy the **Project URL**.
 3. Copy the **anon public** key.
