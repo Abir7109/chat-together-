@@ -12,7 +12,9 @@ type ChatStore = {
   // Actions
   fetchChats: () => Promise<void>;
   fetchMessages: (chatId: string) => Promise<void>;
-  sendNewMessage: (chatId: string, content: string) => Promise<void>;
+  sendNewMessage: (chatId: string, content: string, replyToId?: string, media?: any[]) => Promise<void>;
+  addReaction: (chatId: string, messageId: string, emoji: string) => Promise<void>;
+  removeReaction: (chatId: string, messageId: string, emoji: string) => Promise<void>;
   createDirectChat: (otherUserId: string) => Promise<string>;
   createGroupChat: (name: string, memberIds: string[]) => Promise<string>;
   
@@ -53,11 +55,56 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
   },
 
-  sendNewMessage: async (chatId, content) => {
-    const message = await chatService.sendMessage(chatId, content);
+  sendNewMessage: async (chatId, content, replyToId, media) => {
+    const message = await chatService.sendMessage(chatId, content, replyToId, media);
     // Optimistic update or wait for real-time? 
     // For now, let's add it directly. Real-time subscription should handle deduplication if needed.
     get().addMessage(message);
+  },
+
+  addReaction: async (chatId, messageId, emoji) => {
+    // Optimistic update
+    const { messages } = get();
+    const chatMessages = messages[chatId] || [];
+    const currentUser = useUserStore.getState().currentUser;
+    if (!currentUser) return;
+
+    const updatedMessages = chatMessages.map(msg => {
+      if (msg.id === messageId) {
+        const reactions = msg.reactions || [];
+        if (!reactions.some(r => r.emoji === emoji && r.userId === currentUser.id)) {
+          return { ...msg, reactions: [...reactions, { emoji, userId: currentUser.id }] };
+        }
+      }
+      return msg;
+    });
+
+    set({ messages: { ...messages, [chatId]: updatedMessages } });
+
+    await chatService.addReaction(messageId, emoji);
+  },
+
+  removeReaction: async (chatId, messageId, emoji) => {
+    // Optimistic update
+    const { messages } = get();
+    const chatMessages = messages[chatId] || [];
+    const currentUser = useUserStore.getState().currentUser;
+    if (!currentUser) return;
+
+    const updatedMessages = chatMessages.map(msg => {
+      if (msg.id === messageId) {
+        const reactions = msg.reactions || [];
+        return { 
+          ...msg, 
+          reactions: reactions.filter(r => !(r.emoji === emoji && r.userId === currentUser.id)) 
+        };
+      }
+      return msg;
+    });
+
+    set({ messages: { ...messages, [chatId]: updatedMessages } });
+
+    await chatService.removeReaction(messageId, emoji);
   },
 
   createDirectChat: async (otherUserId) => {
@@ -80,20 +127,39 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const messageSubscription = supabase
       .channel('public:messages')
       .on('postgres_changes', { 
-        event: 'INSERT', 
+        event: '*', 
         schema: 'public', 
         table: 'messages' 
       }, (payload) => {
-        const newMessage = payload.new as any;
-        addMessage({
-          id: newMessage.id,
-          chatId: newMessage.chat_id,
-          authorId: newMessage.sender_id,
-          content: newMessage.content,
-          type: newMessage.type,
-          createdAt: newMessage.created_at,
-          status: 'sent'
-        });
+        if (payload.eventType === 'INSERT') {
+          const newMessage = payload.new as any;
+          addMessage({
+            id: newMessage.id,
+            chatId: newMessage.chat_id,
+            authorId: newMessage.author_id,
+            content: newMessage.content,
+            replyToId: newMessage.reply_to_id,
+            media: newMessage.media,
+            reactions: newMessage.reactions,
+            createdAt: newMessage.created_at,
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const updatedMessage = payload.new as any;
+          const { messages } = get();
+          const chatMessages = messages[updatedMessage.chat_id] || [];
+          const newMessages = chatMessages.map(m => 
+            m.id === updatedMessage.id 
+              ? {
+                  ...m,
+                  content: updatedMessage.content,
+                  reactions: updatedMessage.reactions,
+                  media: updatedMessage.media,
+                  replyToId: updatedMessage.reply_to_id
+                }
+              : m
+          );
+          set({ messages: { ...messages, [updatedMessage.chat_id]: newMessages } });
+        }
       })
       .subscribe();
 

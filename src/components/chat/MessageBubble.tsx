@@ -3,7 +3,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Smile, Reply, MoreHorizontal, Trash2, Edit2 } from "lucide-react";
-import { mockUsers } from "@/lib/mockData";
+import { useChatStore } from "@/store/chatStore";
+import { useUserStore } from "@/store/userStore";
 import { useState } from "react";
 import type { Message } from "@/types";
 
@@ -19,25 +20,27 @@ type MessageBubbleProps = {
 };
 
 export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps) {
-  const author = mockUsers.find(u => u.id === message.authorId);
+  const { getUser } = useUserStore();
+  const { addReaction, removeReaction } = useChatStore();
+  const author = getUser(message.authorId);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const [localReactions, setLocalReactions] = useState(message.reactions || []);
+  const { currentUser } = useUserStore();
 
   const quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
-  const handleReaction = (emoji: string) => {
-    const currentUser = localStorage.getItem('user');
-    const user = currentUser ? JSON.parse(currentUser) : { id: 'user-1' };
+  const handleReaction = async (emoji: string) => {
+    if (!currentUser) return;
     
-    // Toggle reaction
-    const existingReaction = localReactions.find(r => r.emoji === emoji && r.userId === user.id);
+    const existingReaction = message.reactions?.find(r => r.emoji === emoji && r.userId === currentUser.id);
+    
     if (existingReaction) {
-      setLocalReactions(localReactions.filter(r => !(r.emoji === emoji && r.userId === user.id)));
+      await removeReaction(message.chatId, message.id, emoji);
     } else {
-      setLocalReactions([...localReactions, { emoji, userId: user.id }]);
+      await addReaction(message.chatId, message.id, emoji);
     }
     setShowReactionPicker(false);
   };
+
   return (
     <motion.div
       variants={messageVariants}
@@ -112,6 +115,32 @@ export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps
               isOwn ? "message-bubble-own" : "message-bubble-other"
             }`}
           >
+            {/* Media Attachments */}
+            {message.media && message.media.length > 0 && (
+              <div className="mb-2 space-y-2">
+                {message.media.map((item, idx) => (
+                  <div key={idx} className="rounded-lg overflow-hidden">
+                    {item.type === 'image' ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img 
+                        src={item.url} 
+                        alt="attachment" 
+                        className="max-w-full max-h-60 object-cover"
+                      />
+                    ) : (
+                      <a 
+                        href={item.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 bg-black/10 rounded hover:bg-black/20 transition-colors"
+                      >
+                        <span className="text-sm underline">{item.filename || 'File'}</span>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="text-sm leading-relaxed">{message.content}</p>
           </div>
         </div>
@@ -121,23 +150,26 @@ export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps
           {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
         </span>
 
-        {/* Reactions */}
-        {localReactions.length > 0 && (
-          <div className="flex gap-1 mt-1 flex-wrap">
-            {Object.entries(
-              localReactions.reduce((acc, r) => {
-                acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                return acc;
-              }, {} as Record<string, number>)
-            ).map(([emoji, count]) => (
-              <button
-                key={emoji}
-                onClick={() => handleReaction(emoji)}
-                className="px-2 py-0.5 bg-white/80 hover:bg-white rounded-full text-sm border border-tan/20 transition-colors"
-              >
-                {emoji} {count > 1 && count}
-              </button>
-            ))}
+        {/* Reactions Display */}
+        {message.reactions && message.reactions.length > 0 && (
+          <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+            {Array.from(new Set(message.reactions.map(r => r.emoji))).map(emoji => {
+              const count = message.reactions!.filter(r => r.emoji === emoji).length;
+              const hasReacted = message.reactions!.some(r => r.emoji === emoji && r.userId === currentUser?.id);
+              return (
+                <button
+                  key={emoji}
+                  onClick={() => handleReaction(emoji)}
+                  className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
+                    hasReacted 
+                      ? "bg-blue-100 border-blue-300" 
+                      : "bg-white/50 border-gray-200 hover:bg-white"
+                  }`}
+                >
+                  {emoji} <span className="ml-0.5 font-medium">{count}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

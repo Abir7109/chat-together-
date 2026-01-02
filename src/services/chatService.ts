@@ -131,11 +131,14 @@ export const chatService = {
       chatId: msg.chat_id,
       authorId: msg.author_id,
       content: msg.content,
+      replyToId: msg.reply_to_id,
+      media: msg.media,
+      reactions: msg.reactions,
       createdAt: msg.created_at,
     }));
   },
 
-  async sendMessage(chatId: string, content: string): Promise<Message> {
+  async sendMessage(chatId: string, content: string, replyToId?: string, media: any[] = []): Promise<Message> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
@@ -145,6 +148,8 @@ export const chatService = {
         chat_id: chatId,
         author_id: user.id,
         content,
+        reply_to_id: replyToId,
+        media,
       })
       .select()
       .single();
@@ -156,8 +161,62 @@ export const chatService = {
       chatId: message.chat_id,
       authorId: message.author_id,
       content: message.content,
+      replyToId: message.reply_to_id,
+      media: message.media,
+      reactions: message.reactions,
       createdAt: message.created_at,
     };
+  },
+
+  async addReaction(messageId: string, emoji: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    // Fetch current reactions
+    const { data: message, error: fetchError } = await supabase
+      .from('messages')
+      .select('reactions')
+      .eq('id', messageId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const reactions = message.reactions || [];
+    // Check if already reacted
+    const existing = reactions.find((r: any) => r.userId === user.id && r.emoji === emoji);
+    if (existing) return;
+
+    const newReactions = [...reactions, { emoji, userId: user.id }];
+
+    const { error: updateError } = await supabase
+      .from('messages')
+      .update({ reactions: newReactions })
+      .eq('id', messageId);
+
+    if (updateError) throw updateError;
+  },
+
+  async removeReaction(messageId: string, emoji: string): Promise<void> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data: message, error: fetchError } = await supabase
+      .from('messages')
+      .select('reactions')
+      .eq('id', messageId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const reactions = message.reactions || [];
+    const newReactions = reactions.filter((r: any) => !(r.userId === user.id && r.emoji === emoji));
+
+    const { error: updateError } = await supabase
+      .from('messages')
+      .update({ reactions: newReactions })
+      .eq('id', messageId);
+
+    if (updateError) throw updateError;
   },
   
   async searchUsers(query: string): Promise<User[]> {
@@ -177,5 +236,25 @@ export const chatService = {
       bio: p.bio,
       createdAt: p.created_at,
     }));
+  },
+
+  async uploadFile(file: File): Promise<string> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('chat-media')
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('chat-media')
+      .getPublicUrl(fileName);
+
+    return publicUrl;
   }
 };

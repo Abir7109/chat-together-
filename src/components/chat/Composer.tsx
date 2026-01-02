@@ -3,6 +3,7 @@
 import { useState, useRef, KeyboardEvent, useEffect } from "react";
 import { Send, Paperclip, Smile, Image as ImageIcon, X } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
+import { chatService } from "@/services/chatService";
 import { useToastStore } from "@/components/ui/Toast";
 import EmojiPicker from "emoji-picker-react";
 import type { Message } from "@/types";
@@ -19,22 +20,44 @@ export function Composer({ chatId }: { chatId: string }) {
   const handleSend = async () => {
     if (!message.trim() && selectedFiles.length === 0) return;
     
-    if (selectedFiles.length > 0) {
-      addToast("File uploads are not implemented yet", "info");
-      setSelectedFiles([]);
-    }
-
-    if (!message.trim()) return;
-
     try {
-      await sendNewMessage(chatId, message.trim());
+      let mediaAttachments: any[] = [];
+      
+      if (selectedFiles.length > 0) {
+        // Upload files
+        const uploadPromises = selectedFiles.map(async (file) => {
+          try {
+            const url = await chatService.uploadFile(file);
+            return {
+              id: Math.random().toString(36).substring(7),
+              type: file.type.startsWith('image/') ? 'image' : 'file',
+              url,
+              filename: file.name,
+              size: file.size,
+              mimeType: file.type
+            };
+          } catch (e) {
+            console.error("Failed to upload file", file.name, e);
+            addToast(`Failed to upload ${file.name}`, "error");
+            return null;
+          }
+        });
+
+        const results = await Promise.all(uploadPromises);
+        mediaAttachments = results.filter(Boolean);
+      }
+
+      await sendNewMessage(chatId, message.trim(), undefined, mediaAttachments);
+      
       setMessage("");
+      setSelectedFiles([]);
       setShowEmojiPicker(false);
       
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
     } catch (error) {
+      console.error(error);
       addToast("Failed to send message", "error");
     }
   };

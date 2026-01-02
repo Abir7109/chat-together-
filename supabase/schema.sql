@@ -13,6 +13,8 @@ create table profiles (
   display_name text,
   avatar_url text,
   bio text,
+  push_token text,
+  public_key text,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -40,6 +42,9 @@ create table messages (
   chat_id uuid references chats on delete cascade not null,
   author_id uuid references profiles(id) on delete cascade not null,
   content text,
+  reply_to_id uuid references messages(id) on delete set null,
+  media jsonb default '[]'::jsonb,
+  reactions jsonb default '[]'::jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone
 );
