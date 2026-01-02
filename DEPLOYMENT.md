@@ -25,13 +25,19 @@ The `supabase/schema.sql` file now includes commands to automatically enable Rea
 Simply running the SQL query in Step 1.2 is enough.
 
 ### Step 1.4: Authentication Settings (Important!)
-By default, Supabase requires users to verify their email address before logging in. For a smoother experience (and to fix "Invalid login credentials" errors immediately after signup):
+By default, Supabase requires users to verify their email address before logging in.
 
+**Option A: Disable Email Confirmation (Recommended for Dev)**
 1. Go to **Authentication** -> **Providers** -> **Email**.
 2. **Disable** "Confirm email".
 3. Click "Save".
 
-This allows users to log in immediately after signing up without waiting for an email.
+**Option B: Keep Email Confirmation (Production)**
+If you want to keep email confirmation enabled:
+1. Go to **Authentication** -> **URL Configuration**.
+2. In **Site URL**, enter your Vercel URL (e.g., `https://chat-together-xyz.vercel.app`).
+3. In **Redirect URLs**, add the same URL.
+4. Click "Save".
 
 ### Step 1.5: Get API Credentials
 1. Go to **Project Settings** (cog icon) -> **API**.

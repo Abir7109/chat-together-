@@ -11,6 +11,9 @@ export const authService = {
           username,
           full_name: fullName,
         },
+        emailRedirectTo: typeof window !== 'undefined' 
+          ? `${window.location.origin}/auth/login` 
+          : undefined,
       },
     });
 
