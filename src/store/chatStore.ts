@@ -8,10 +8,12 @@ type ChatStore = {
   chats: Record<string, Chat>;
   messages: Record<string, Message[]>;
   typing: Record<string, string[]>;
+  replyingTo: Message | null;
   
   // Actions
   fetchChats: () => Promise<void>;
   fetchMessages: (chatId: string) => Promise<void>;
+  setReplyingTo: (message: Message | null) => void;
   sendNewMessage: (chatId: string, content: string, replyToId?: string, media?: any[]) => Promise<void>;
   addReaction: (chatId: string, messageId: string, emoji: string) => Promise<void>;
   removeReaction: (chatId: string, messageId: string, emoji: string) => Promise<void>;
@@ -32,6 +34,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
   messages: {},
   typing: {},
+  replyingTo: null,
   
   fetchChats: async () => {
     const data = await chatService.getChats();

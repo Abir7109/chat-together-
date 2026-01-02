@@ -21,10 +21,15 @@ type MessageBubbleProps = {
 
 export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps) {
   const { getUser } = useUserStore();
-  const { addReaction, removeReaction } = useChatStore();
+  const { addReaction, removeReaction, messages, setReplyingTo } = useChatStore();
   const author = getUser(message.authorId);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const { currentUser } = useUserStore();
+
+  const repliedMessage = message.replyToId 
+    ? messages[message.chatId]?.find(m => m.id === message.replyToId) 
+    : null;
+  const repliedAuthor = repliedMessage ? getUser(repliedMessage.authorId) : null;
 
   const quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🔥'];
 
@@ -94,7 +99,10 @@ export function MessageBubble({ message, isOwn, showAvatar }: MessageBubbleProps
                 )}
               </AnimatePresence>
             </div>
-            <button className="p-1.5 hover:bg-blue-1/20 rounded-lg transition-colors bg-white/80">
+            <button 
+              onClick={() => setReplyingTo(message)}
+              className="p-1.5 hover:bg-blue-1/20 rounded-lg transition-colors bg-white/80"
+            >
               <Reply size={16} />
             </button>
             {isOwn && (

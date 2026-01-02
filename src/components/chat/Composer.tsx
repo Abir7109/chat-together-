@@ -15,7 +15,8 @@ export function Composer({ chatId }: { chatId: string }) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { sendNewMessage } = useChatStore();
+  const { sendNewMessage, replyingTo, setReplyingTo } = useChatStore();
+  const { getUser } = useUserStore();
   const { addToast } = useToastStore();
 
   const handleSend = async () => {
@@ -48,7 +49,7 @@ export function Composer({ chatId }: { chatId: string }) {
         mediaAttachments = results.filter(Boolean);
       }
 
-      await sendNewMessage(chatId, message.trim(), undefined, mediaAttachments);
+      await sendNewMessage(chatId, message.trim(), replyingTo?.id, mediaAttachments);
       
       setMessage("");
       setSelectedFiles([]);
