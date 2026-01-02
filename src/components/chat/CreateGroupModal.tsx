@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, Check } from "lucide-react";
-import { mockUsers } from "@/lib/mockData";
+import { X, Users, Check, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useChatStore } from "@/store/chatStore";
+import { useToastStore } from "@/components/ui/Toast";
+import { chatService } from "@/services/chatService";
+import type { User } from "@/types";
 
 type CreateGroupModalProps = {
   isOpen: boolean;
@@ -14,27 +17,55 @@ type CreateGroupModalProps = {
 export function CreateGroupModal({ isOpen, onClose }: CreateGroupModalProps) {
   const router = useRouter();
   const [groupName, setGroupName] = useState("");
-  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [selectedUsers, setSelectedUsers] = useState<User[]>([]);
+  const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  
+  const { createGroupChat } = useChatStore();
+  const { addToast } = useToastStore();
 
-  const toggleUser = (userId: string) => {
+  const handleSearch = async (value: string) => {
+    setQuery(value);
+    if (!value.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    
+    setIsSearching(true);
+    try {
+      const users = await chatService.searchUsers(value);
+      setSearchResults(users);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const toggleUser = (user: User) => {
     setSelectedUsers(prev =>
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
+      prev.find(u => u.id === user.id)
+        ? prev.filter(u => u.id !== user.id)
+        : [...prev, user]
     );
   };
 
-  const handleCreate = () => {
-    if (!groupName.trim() || selectedUsers.length === 0) return;
+  const handleCreate = async () => {
+    if (!groupName.trim() || selectedUsers.length === 0) {
+        addToast("Please enter a group name and select at least one member", "error");
+        return;
+    }
     
-    // In real app, would create group via API
-    console.log("Creating group:", { name: groupName, members: selectedUsers });
-    onClose();
-    // Navigate to new group (mock)
-    router.push("/chat/2");
+    try {
+        const chatId = await createGroupChat(groupName, selectedUsers.map(u => u.id));
+        addToast("Group created successfully!", "success");
+        onClose();
+        router.push(`/chat/${chatId}`);
+    } catch (error: any) {
+        addToast(error.message || "Failed to create group", "error");
+    }
   };
-
-  const availableUsers = mockUsers.filter(u => u.id !== 'user-1');
 
   return (
     <AnimatePresence>
@@ -56,9 +87,9 @@ export function CreateGroupModal({ isOpen, onClose }: CreateGroupModalProps) {
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md z-50"
           >
-            <div className="panel rounded-2xl shadow-2xl p-6 m-4">
+            <div className="panel rounded-2xl shadow-2xl p-6 m-4 max-h-[90vh] flex flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6 flex-shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-sage/20 rounded-lg">
                     <Users className="text-sage" size={24} />
@@ -73,68 +104,101 @@ export function CreateGroupModal({ isOpen, onClose }: CreateGroupModalProps) {
                 </button>
               </div>
 
-              {/* Group Name */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-text mb-2">
-                  Group Name
-                </label>
-                <input
-                  type="text"
-                  value={groupName}
-                  onChange={(e) => setGroupName(e.target.value)}
-                  placeholder="My Awesome Group"
-                  className="w-full px-4 py-3 bg-white/60 border border-tan/30 rounded-xl focus:outline-none focus:border-sage focus:ring-2 focus:ring-sage/20"
-                />
-              </div>
+              <div className="flex-1 overflow-y-auto min-h-0">
+                {/* Group Name */}
+                <div className="mb-6">
+                    <label className="block text-sm font-medium text-text mb-2">
+                    Group Name
+                    </label>
+                    <input
+                    type="text"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    placeholder="My Awesome Group"
+                    className="w-full px-4 py-3 bg-white/60 border border-tan/30 rounded-xl focus:outline-none focus:border-sage focus:ring-2 focus:ring-sage/20"
+                    />
+                </div>
 
-              {/* Member Selection */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-text mb-2">
-                  Add Members ({selectedUsers.length})
-                </label>
-                <div className="space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
-                  {availableUsers.map((user) => {
-                    const isSelected = selectedUsers.includes(user.id);
-                    return (
-                      <button
-                        key={user.id}
-                        onClick={() => toggleUser(user.id)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors ${
-                          isSelected
-                            ? "bg-sage/20 border-2 border-sage"
-                            : "hover:bg-tan/10 border-2 border-transparent"
-                        }`}
-                      >
-                        <div className="w-10 h-10 rounded-full bg-sage flex items-center justify-center text-white font-semibold flex-shrink-0">
-                          {user.displayName.charAt(0)}
+                {/* Member Selection */}
+                <div className="mb-6">
+                    <label className="block text-sm font-medium text-text mb-2">
+                    Add Members ({selectedUsers.length})
+                    </label>
+                    
+                    {/* Search Input */}
+                    <div className="relative mb-3">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text/40" size={16} />
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={(e) => handleSearch(e.target.value)}
+                            placeholder="Search users to add..."
+                            className="w-full pl-9 pr-4 py-2 bg-white/60 border border-tan/30 rounded-lg text-sm focus:outline-none focus:border-sage focus:ring-2 focus:ring-sage/20"
+                        />
+                    </div>
+
+                    {/* Selected Users Pills */}
+                    {selectedUsers.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {selectedUsers.map(user => (
+                                <div key={user.id} className="flex items-center gap-1 bg-sage/10 text-sage-dark px-2 py-1 rounded-full text-xs font-medium">
+                                    <span>{user.displayName}</span>
+                                    <button onClick={() => toggleUser(user)} className="hover:text-red-500">
+                                        <X size={12} />
+                                    </button>
+                                </div>
+                            ))}
                         </div>
-                        <div className="flex-1 min-w-0 text-left">
-                          <p className="font-semibold text-text truncate">{user.displayName}</p>
-                          <p className="text-sm text-text/60 truncate">@{user.username}</p>
-                        </div>
-                        {isSelected && (
-                          <div className="p-1 bg-sage rounded-full">
-                            <Check size={16} className="text-white" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
+                    )}
+
+                    <div className="space-y-2 max-h-48 overflow-y-auto scrollbar-thin border border-tan/20 rounded-xl p-2 bg-white/30">
+                    {query ? (
+                        isSearching ? (
+                            <div className="text-center py-4 text-text/60 text-sm">Searching...</div>
+                        ) : searchResults.length === 0 ? (
+                            <div className="text-center py-4 text-text/60 text-sm">No users found</div>
+                        ) : (
+                            searchResults.map((user) => {
+                                const isSelected = selectedUsers.some(u => u.id === user.id);
+                                return (
+                                <button
+                                    key={user.id}
+                                    onClick={() => toggleUser(user)}
+                                    className={`w-full flex items-center gap-3 p-2 rounded-lg transition-colors text-left ${
+                                    isSelected ? 'bg-sage/10' : 'hover:bg-tan/10'
+                                    }`}
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-sage flex items-center justify-center text-white text-sm font-semibold flex-shrink-0">
+                                    {user.displayName.charAt(0)}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                    <p className="font-medium text-text truncate text-sm">{user.displayName}</p>
+                                    <p className="text-xs text-text/60 truncate">@{user.username}</p>
+                                    </div>
+                                    {isSelected && <Check size={16} className="text-sage" />}
+                                </button>
+                                );
+                            })
+                        )
+                    ) : (
+                        <div className="text-center py-4 text-text/60 text-sm">Type to search users</div>
+                    )}
+                    </div>
                 </div>
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-3">
+              {/* Footer */}
+              <div className="pt-4 border-t border-tan/20 flex justify-end gap-3 flex-shrink-0">
                 <button
                   onClick={onClose}
-                  className="flex-1 px-4 py-3 bg-white/60 border border-tan/30 rounded-xl font-medium hover:bg-tan/10 transition-colors"
+                  className="px-4 py-2 text-text/60 hover:text-text font-medium transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCreate}
                   disabled={!groupName.trim() || selectedUsers.length === 0}
-                  className="flex-1 btn-primary py-3 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-sage text-white rounded-xl font-medium hover:bg-sage-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Create Group
                 </button>

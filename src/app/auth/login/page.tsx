@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Lock, Chrome } from "lucide-react";
+import { authService } from "@/services/authService";
+import { useToastStore } from "@/components/ui/Toast";
 import { Logo } from "@/components/branding/Logo";
 
 export default function LoginPage() {
@@ -12,35 +14,25 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { addToast } = useToastStore();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    // Mock login - in real app, this would call your auth API
-    setTimeout(() => {
-      localStorage.setItem("user", JSON.stringify({
-        id: "user-1",
-        username: "you",
-        displayName: "You",
-        email,
-      }));
-      router.push("/chat/1");
-    }, 1000);
+    try {
+      await authService.signIn(email, password);
+      router.push("/chat");
+    } catch (error: any) {
+      addToast(error.message || "Failed to login", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleLogin = () => {
-    // Mock Google login
-    setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem("user", JSON.stringify({
-        id: "user-1",
-        username: "you",
-        displayName: "You",
-        email: "you@gmail.com",
-      }));
-      router.push("/chat/1");
-    }, 1000);
+    // TODO: Implement Google login with Supabase
+    addToast("Google login not implemented yet", "info");
   };
 
   return (

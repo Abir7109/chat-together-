@@ -13,31 +13,29 @@ export function Composer({ chatId }: { chatId: string }) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const addMessage = useChatStore(state => state.addMessage);
-  const addToast = useToastStore(state => state.addToast);
+  const { sendNewMessage } = useChatStore();
+  const { addToast } = useToastStore();
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!message.trim() && selectedFiles.length === 0) return;
     
-    const currentUser = localStorage.getItem('user');
-    const user = currentUser ? JSON.parse(currentUser) : { id: 'user-1' };
+    if (selectedFiles.length > 0) {
+      addToast("File uploads are not implemented yet", "info");
+      setSelectedFiles([]);
+    }
 
-    const newMessage: Message = {
-      id: `msg-${Date.now()}`,
-      chatId,
-      authorId: user.id,
-      content: message.trim(),
-      createdAt: new Date().toISOString(),
-    };
+    if (!message.trim()) return;
 
-    addMessage(newMessage);
-    addToast("Message sent!", "success");
-    setMessage("");
-    setSelectedFiles([]);
-    setShowEmojiPicker(false);
-    
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
+    try {
+      await sendNewMessage(chatId, message.trim());
+      setMessage("");
+      setShowEmojiPicker(false);
+      
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
+    } catch (error) {
+      addToast("Failed to send message", "error");
     }
   };
 

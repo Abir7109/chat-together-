@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Mail, Lock, User, Chrome } from "lucide-react";
+import { authService } from "@/services/authService";
+import { useToastStore } from "@/components/ui/Toast";
 import { Logo } from "@/components/branding/Logo";
 
 export default function RegisterPage() {
@@ -15,40 +17,32 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { addToast } = useToastStore();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
-      alert("Passwords don't match!");
+      addToast("Passwords don't match!", "error");
       return;
     }
 
     setLoading(true);
 
-    // Mock registration - in real app, this would call your auth API
-    setTimeout(() => {
-      localStorage.setItem("user", JSON.stringify({
-        id: "user-1",
-        username,
-        displayName,
-        email,
-      }));
-      router.push("/chat/1");
-    }, 1000);
+    try {
+      await authService.signUp(email, password, username, displayName);
+      addToast("Registration successful! Please check your email to verify.", "success");
+      router.push("/auth/login");
+    } catch (error: any) {
+      addToast(error.message || "Failed to register", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoogleSignup = () => {
-    setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem("user", JSON.stringify({
-        id: "user-1",
-        username: "you",
-        displayName: "You",
-        email: "you@gmail.com",
-      }));
-      router.push("/chat/1");
-    }, 1000);
+    // TODO: Implement Google login with Supabase
+    addToast("Google signup not implemented yet", "info");
   };
 
   return (

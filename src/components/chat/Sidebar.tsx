@@ -1,17 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Search, Filter, Settings, Plus, Users } from "lucide-react";
+import { Search, Settings, Plus, Users } from "lucide-react";
 import { Logo } from "@/components/branding/Logo";
 import { ChatListItem } from "./ChatListItem";
 import { UserSearchModal } from "./UserSearchModal";
 import { CreateGroupModal } from "./CreateGroupModal";
-import { mockChats, mockUsers, mockMessages, getChatName, getLastMessage } from "@/lib/mockData";
-import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Chat } from "@/types";
+import { useChatStore } from "@/store/chatStore";
+import { useUserStore } from "@/store/userStore";
+import type { Chat, User } from "@/types";
 
 type FilterType = "all" | "unread" | "groups" | "mentions";
 
@@ -19,30 +18,36 @@ export function Sidebar() {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isUserSearchOpen, setIsUserSearchOpen] = useState(false);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  
+  const { chats, fetchChats } = useChatStore();
+  const { currentUser, users } = useUserStore();
 
   useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (user) {
-      setCurrentUser(JSON.parse(user));
-    }
-  }, []);
+    fetchChats();
+  }, [fetchChats]);
 
-  const chats = mockChats
-    .map((chat) => {
-      const lastMessage = getLastMessage(chat.id);
-      return {
-        id: chat.id,
-        name: getChatName(chat, mockUsers, currentUser?.id || 'user-1'),
-        avatarUrl: undefined,
-        lastMessage: lastMessage?.content || 'No messages yet',
-        timestamp: lastMessage ? formatDistanceToNow(new Date(lastMessage.createdAt), { addSuffix: true }) : '',
-        unreadCount: Math.random() > 0.5 ? Math.floor(Math.random() * 3) : 0,
-        type: chat.type,
-      };
-    })
+  const getChatName = (chat: Chat) => {
+    if (chat.type === 'group') {
+      return chat.name || 'Group Chat';
+    }
+    const otherMemberId = chat.members.find(id => id !== currentUser?.id);
+    if (!otherMemberId) return 'Unknown User';
+    const otherUser = users[otherMemberId];
+    return otherUser ? (otherUser.displayName || otherUser.username) : 'Unknown User';
+  };
+
+  const chatList = Object.values(chats)
+    .map((chat) => ({
+      id: chat.id,
+      name: getChatName(chat),
+      avatarUrl: undefined, // TODO: Chat avatar
+      lastMessage: 'No messages yet', // TODO: Fetch last message
+      timestamp: '',
+      unreadCount: 0,
+      type: chat.type,
+    }))
     .filter((chat) => {
       if (filter === "groups") return chat.type === "group";
       if (filter === "unread") return chat.unreadCount > 0;
@@ -53,8 +58,8 @@ export function Sidebar() {
       chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  const totalUnread = chats.reduce((acc, chat) => acc + chat.unreadCount, 0);
-  const totalGroups = mockChats.filter(c => c.type === "group").length;
+  const totalUnread = chatList.reduce((acc, chat) => acc + chat.unreadCount, 0);
+  const totalGroups = Object.values(chats).filter(c => c.type === "group").length;
 
   const filters: { key: FilterType; label: string; count?: number }[] = [
     { key: "all", label: "All" },
@@ -138,27 +143,38 @@ export function Sidebar() {
 
       {/* Chat List */}
       <div className="flex-1 overflow-y-auto scrollbar-thin">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ staggerChildren: 0.05 }}
-        >
-          {chats.map((chat) => (
-            <ChatListItem key={chat.id} chat={chat} />
-          ))}
-        </motion.div>
+        {chatList.length === 0 ? (
+           <div className="p-4 text-center text-text/60 text-sm">
+             No chats yet. Start a conversation!
+           </div>
+        ) : (
+          <div>
+            {chatList.map((chat) => (
+              <ChatListItem key={chat.id} chat={chat} />
+            ))}
+          </div>
+        )}
       </div>
 
       <UserSearchModal
         isOpen={isUserSearchOpen}
         onClose={() => setIsUserSearchOpen(false)}
-        onSelectUser={(userId) => {
-          const existingChat = mockChats.find(c => 
+        onSelectUser={async (userId) => {
+          const existingChat = Object.values(chats).find(c => 
             c.type === 'direct' && c.members.includes(userId)
           );
           if (existingChat) {
             router.push(`/chat/${existingChat.id}`);
+          } else {
+             try {
+               const { createDirectChat } = useChatStore.getState();
+               const newChatId = await createDirectChat(userId);
+               router.push(`/chat/${newChatId}`);
+             } catch (error) {
+               console.error("Failed to create chat", error);
+             }
           }
+          setIsUserSearchOpen(false);
         }}
       />
 

@@ -1,9 +1,14 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToastContainer } from "@/components/ui/Toast";
+import AuthProvider from "@/components/auth/AuthProvider";
 
 const inter = Inter({ subsets: ["latin"] });
+
+export const viewport: Viewport = {
+  themeColor: "#5D866C",
+};
 
 export const metadata: Metadata = {
   title: "Chat Together",
@@ -14,7 +19,6 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "CT",
   },
-  themeColor: "#5D866C",
 };
 
 export default function RootLayout({
@@ -25,8 +29,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {children}
-        <ToastContainer />
+        <AuthProvider>
+          {children}
+          <ToastContainer />
+        </AuthProvider>
       </body>
     </html>
   );

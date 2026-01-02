@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Search, UserPlus } from "lucide-react";
-import { mockUsers } from "@/lib/mockData";
+import { chatService } from "@/services/chatService";
+import type { User } from "@/types";
 
 type UserSearchModalProps = {
   isOpen: boolean;
@@ -13,13 +14,29 @@ type UserSearchModalProps = {
 
 export function UserSearchModal({ isOpen, onClose, onSelectUser }: UserSearchModalProps) {
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const filteredUsers = mockUsers
-    .filter(user => user.id !== 'user-1') // Exclude current user
-    .filter(user => 
-      user.displayName.toLowerCase().includes(query.toLowerCase()) ||
-      user.username.toLowerCase().includes(query.toLowerCase())
-    );
+  useEffect(() => {
+    const search = async () => {
+      if (!query.trim()) {
+        setResults([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const users = await chatService.searchUsers(query);
+        setResults(users);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const timer = setTimeout(search, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   return (
     <AnimatePresence>
@@ -68,12 +85,14 @@ export function UserSearchModal({ isOpen, onClose, onSelectUser }: UserSearchMod
 
               {/* User List */}
               <div className="space-y-2 max-h-96 overflow-y-auto scrollbar-thin">
-                {filteredUsers.length === 0 ? (
+                {loading ? (
+                   <div className="text-center py-8 text-text/60">Searching...</div>
+                ) : results.length === 0 ? (
                   <div className="text-center py-8 text-text/60">
-                    No users found
+                    {query ? "No users found" : "Type to search users"}
                   </div>
                 ) : (
-                  filteredUsers.map((user) => (
+                  results.map((user) => (
                     <button
                       key={user.id}
                       onClick={() => {
