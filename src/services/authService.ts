@@ -96,6 +96,7 @@ export const authService = {
 
     return {
       id: user.id,
+      email: user.email,
       username: profile.username || user.email?.split('@')[0] || 'user',
       displayName: profile.display_name || 'User',
       avatarUrl: profile.avatar_url,
