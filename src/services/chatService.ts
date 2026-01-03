@@ -16,7 +16,7 @@ export const chatService = {
 
     if (error) throw error;
 
-    return chats.map((chat: any) => {
+    return Promise.all(chats.map(async (chat: any) => {
       const members = chat.members.map((m: any) => ({
         id: m.profile.id,
         username: m.profile.username,
@@ -24,7 +24,32 @@ export const chatService = {
         avatarUrl: m.profile.avatar_url,
         bio: m.profile.bio,
         createdAt: m.profile.created_at,
+        publicKey: m.profile.public_key,
       }));
+
+      // Fetch last message for this chat
+      const { data: lastMsg } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('chat_id', chat.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      let lastMessage: Message | undefined;
+      if (lastMsg) {
+        lastMessage = {
+          id: lastMsg.id,
+          chatId: lastMsg.chat_id,
+          authorId: lastMsg.author_id,
+          content: lastMsg.content,
+          replyToId: lastMsg.reply_to_id,
+          media: lastMsg.media,
+          reactions: lastMsg.reactions,
+          createdAt: lastMsg.created_at,
+          editedAt: lastMsg.updated_at,
+        };
+      }
 
       return {
         chat: {
@@ -35,10 +60,11 @@ export const chatService = {
           createdAt: chat.created_at,
           createdBy: chat.created_by,
           e2ee: chat.e2ee,
+          lastMessage,
         },
         members,
       };
-    });
+    }));
   },
 
   async createDirectChat(otherUserId: string): Promise<Chat> {
@@ -210,6 +236,7 @@ export const chatService = {
       media: message.media,
       reactions: message.reactions,
       createdAt: message.created_at,
+      editedAt: message.updated_at,
     };
   },
 
@@ -280,6 +307,7 @@ export const chatService = {
       avatarUrl: p.avatar_url,
       bio: p.bio,
       createdAt: p.created_at,
+      publicKey: p.public_key,
     }));
   },
 

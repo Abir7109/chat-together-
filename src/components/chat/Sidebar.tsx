@@ -50,11 +50,12 @@ export function Sidebar() {
       id: chat.id,
       name: getChatName(chat),
       avatarUrl: undefined, // TODO: Chat avatar
-      lastMessage: 'No messages yet', // TODO: Fetch last message
-      timestamp: '',
-      unreadCount: 0,
+      lastMessage: chat.lastMessage?.content || 'No messages yet',
+      timestamp: chat.lastMessage?.createdAt || chat.createdAt,
+      unreadCount: chat.unreadCount || 0,
       type: chat.type,
     }))
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
     .filter((chat) => {
       if (filter === "groups") return chat.type === "group";
       if (filter === "unread") return chat.unreadCount > 0;

@@ -19,6 +19,8 @@ export type Chat = {
   createdAt: string;
   pinnedMessageId?: string;
   e2ee?: boolean;
+  lastMessage?: Message;
+  unreadCount?: number;
 };
 
 export type Message = {
