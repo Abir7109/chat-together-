@@ -28,6 +28,13 @@ export function Sidebar() {
     fetchChats();
   }, [fetchChats]);
 
+  // Subscribe to real-time updates
+  useEffect(() => {
+    const { subscribeToUpdates, unsubscribeFromUpdates } = useChatStore.getState();
+    subscribeToUpdates();
+    return () => unsubscribeFromUpdates();
+  }, []);
+
   const getChatName = (chat: Chat) => {
     if (chat.type === 'group') {
       return chat.name || 'Group Chat';

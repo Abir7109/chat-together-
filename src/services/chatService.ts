@@ -45,10 +45,55 @@ export const chatService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
 
-    // Check if chat already exists
-    // Note: This is a simplified check. In a real app, you'd want a more robust query
-    // to find if a direct chat between these two users already exists.
+    // Check if a direct chat between these two users already exists
+    // We can query chat_members to find a chat where both users are members and type is 'direct'
+    // For simplicity/performance in this MVP, we can fetch all direct chats of the current user
+    // and check if the other user is in any of them.
     
+    // Step 1: Get all direct chats for current user
+    const { data: myChats, error: myChatsError } = await supabase
+      .from('chat_members')
+      .select('chat_id, chats(type)')
+      .eq('user_id', user.id);
+      
+    if (myChatsError) throw myChatsError;
+    
+    // Filter only direct chats
+    const directChatIds = myChats
+      .filter((c: any) => c.chats?.type === 'direct')
+      .map((c: any) => c.chat_id);
+      
+    if (directChatIds.length > 0) {
+      // Step 2: Check if other user is in any of these chats
+      const { data: existingChatMember, error: existingChatError } = await supabase
+        .from('chat_members')
+        .select('chat_id')
+        .eq('user_id', otherUserId)
+        .in('chat_id', directChatIds)
+        .single();
+        
+      if (!existingChatError && existingChatMember) {
+        // Chat already exists, return it (fetch full details)
+        const { data: fullChat, error: fullChatError } = await supabase
+           .from('chats')
+           .select('*')
+           .eq('id', existingChatMember.chat_id)
+           .single();
+           
+        if (!fullChatError && fullChat) {
+             return {
+              id: fullChat.id,
+              type: 'direct',
+              members: [user.id, otherUserId],
+              createdAt: fullChat.created_at,
+              createdBy: fullChat.created_by,
+              e2ee: fullChat.e2ee,
+            };
+        }
+      }
+    }
+
+    // Chat doesn't exist, create new one
     const { data: chat, error } = await supabase
       .from('chats')
       .insert({

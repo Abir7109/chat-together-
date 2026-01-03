@@ -127,7 +127,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   // Realtime subscriptions
   subscribeToUpdates: () => {
-    const { addMessage } = get();
+    const { addMessage, addChat } = get();
+    const currentUser = useUserStore.getState().currentUser;
+
+    if (!currentUser) return;
     
     // Subscribe to new messages
     const messageSubscription = supabase
@@ -139,6 +142,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMessage = payload.new as any;
+          // Only add message if we have the chat locally or if it's relevant?
+          // For now, we add it. The UI filters by chatId anyway.
           addMessage({
             id: newMessage.id,
             chatId: newMessage.chat_id,
@@ -169,12 +174,57 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       })
       .subscribe();
 
-    // Subscribe to new chats (via chat_members for the current user)
-    // Note: RLS policies should filter this, but client-side filtering is also good
-    // However, Supabase realtime with RLS works best when subscribing to specific rows or using "postgres_changes" with filter
-    // For simplicity, we might just refresh chats on certain events or listen to everything if traffic is low.
-    // Better approach: Listen to 'chat_members' insertions where user_id = current_user
-    // But we need the current user ID.
+    // Subscribe to chat_members to detect new chats
+    const chatSubscription = supabase
+      .channel(`public:chat_members:${currentUser.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chat_members',
+        filter: `user_id=eq.${currentUser.id}`
+      }, async (payload) => {
+        // New chat added for this user
+        const newMember = payload.new as any;
+        // Fetch the full chat details
+        const { data: chatData, error } = await supabase
+            .from('chats')
+            .select(`
+                *,
+                members:chat_members(
+                    user_id,
+                    profile:profiles(*)
+                )
+            `)
+            .eq('id', newMember.chat_id)
+            .single();
+            
+        if (!error && chatData) {
+            const members = chatData.members.map((m: any) => ({
+                id: m.profile.id,
+                username: m.profile.username,
+                displayName: m.profile.display_name,
+                avatarUrl: m.profile.avatar_url,
+                bio: m.profile.bio,
+                createdAt: m.profile.created_at,
+            }));
+
+            // Add users to store
+            members.forEach((member: any) => {
+                useUserStore.getState().addUser(member);
+            });
+
+            addChat({
+                id: chatData.id,
+                type: chatData.type,
+                name: chatData.name,
+                members: members.map((u: any) => u.id),
+                createdAt: chatData.created_at,
+                createdBy: chatData.created_by,
+                e2ee: chatData.e2ee,
+            });
+        }
+      })
+      .subscribe();
   },
 
   unsubscribeFromUpdates: () => {

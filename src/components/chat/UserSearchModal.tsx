@@ -108,7 +108,9 @@ export function UserSearchModal({ isOpen, onClose, onSelectUser }: UserSearchMod
                         <p className="font-semibold text-text truncate">{user.displayName}</p>
                         <p className="text-sm text-text/60 truncate">@{user.username}</p>
                       </div>
-                      <UserPlus size={18} className="text-sage flex-shrink-0" />
+                      <div className="flex items-center gap-2 text-sage bg-sage/10 px-3 py-1.5 rounded-lg text-sm font-medium">
+                        Start Chat
+                      </div>
                     </button>
                   ))
                 )}
