@@ -6,19 +6,13 @@ import { useEffect, useState } from "react";
 import { CallModal } from "./CallModal";
 import { SearchModal } from "./SearchModal";
 import { ProfileModal } from "./ProfileModal";
+import { useUserStore } from "@/store/userStore";
 
 export function ChatHeader({ chatId }: { chatId: string }) {
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { currentUser } = useUserStore();
   const [callType, setCallType] = useState<"voice" | "video" | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-
-  useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (user) {
-      setCurrentUser(JSON.parse(user));
-    }
-  }, []);
 
   const chat = mockChats.find(c => c.id === chatId);
   const chatName = chat ? getChatName(chat, mockUsers, currentUser?.id || 'user-1') : 'Chat';

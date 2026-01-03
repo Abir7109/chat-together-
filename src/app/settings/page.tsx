@@ -1,26 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, User, Bell, Lock, Palette, Globe, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/branding/Logo";
+import { useUserStore } from "@/store/userStore";
+import { authService } from "@/services/authService";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { currentUser } = useUserStore();
 
-  useEffect(() => {
-    const user = localStorage.getItem('user');
-    if (user) {
-      setCurrentUser(JSON.parse(user));
+  const handleLogout = async () => {
+    try {
+      await authService.signOut();
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+      // Fallback redirect
+      router.push('/auth/login');
     }
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    router.push('/');
   };
 
   const sections = [

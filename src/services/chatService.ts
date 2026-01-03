@@ -223,7 +223,7 @@ export const chatService = {
     const { data: profiles, error } = await supabase
       .from('profiles')
       .select('*')
-      .ilike('username', `%${query}%`)
+      .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
       .limit(10);
       
     if (error) throw error;

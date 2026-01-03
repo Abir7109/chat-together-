@@ -2,8 +2,8 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Mail, Calendar, Shield } from "lucide-react";
-import { mockUsers } from "@/lib/mockData";
 import { formatDistanceToNow } from "date-fns";
+import { useUserStore } from "@/store/userStore";
 
 type ProfileModalProps = {
   isOpen: boolean;
@@ -12,7 +12,10 @@ type ProfileModalProps = {
 };
 
 export function ProfileModal({ isOpen, onClose, userId }: ProfileModalProps) {
-  const user = mockUsers.find(u => u.id === userId);
+  const { users, currentUser } = useUserStore();
+  
+  const user = (currentUser?.id === userId ? currentUser : users[userId]);
+  
   if (!user) return null;
 
   return (
